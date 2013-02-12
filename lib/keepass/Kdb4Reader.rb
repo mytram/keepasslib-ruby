@@ -85,7 +85,9 @@ module KeePassLib
         gz = KeePassLib::IO::GZipInputStream.new(hashed) if @compression_algorithm == COMPRESSION_GZIP
         pass = gz.read(20000)
         logger.debug("pass length: #{pass.length}")
-        # to parser
+
+        # logger.debug(pass)
+
       end
     end
 
