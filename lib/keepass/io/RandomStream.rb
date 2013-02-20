@@ -7,10 +7,16 @@ module KeePassLib
       def sec_random_bytes(n)
         n.times.map { Random.rand(256) }.pack("C*")
       end
+
+      def xor(data)
+        bytes = x.bytes.to_a
+        bytes.lenght.times { |i| bytes[i] ^= get_byte }
+        bytes.pack('C*')
+      end
     end # RandomStream
 
     class Salsa20RandomStream < RandomStream
-      SIGMA[4] = [0x61707865, 0x3320646E, 0x79622D32, 0x6B206574];
+      SIGMA = [0x61707865, 0x3320646E, 0x79622D32, 0x6B206574];
 
       def initialize(key = nil)
         @state = Array.new
@@ -34,7 +40,7 @@ module KeePassLib
 
       def set_key(key)
         @state[1], @state[2], @state[3], @state[4], @state[11], @state[12], @state[13], @state[14] = key.unpack("L<L<L<L<L<L<L<L<")
-        @state[0], @state[5], @state[10], @state[15] = SIGMA
+        @state[0], @state[5], @state[10], @state[15] = SIGMA[0,4]
       end
 
       def set_iv(iv)
@@ -94,7 +100,7 @@ module KeePassLib
         }
 
         @state[8] += 1
-        if @state[8] <> 0
+        if @state[8] == 0
           state[9] += 1
         end
       end

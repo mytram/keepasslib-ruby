@@ -40,12 +40,16 @@ module KeePassLib
       val.nil? ? nil : val.downcase == 'true'
     end
 
-    def value
+    def value(v=nil)
       val = nil
       if @elem.class == Hash
-          val = @elem['content'] if @elem.include?('content')
+        if @elem.include?('content')
+          val = @elem['content']
+          @elem['content'] = v if v
+        end
       elsif @elem.class == String
         val = @elem
+        @elem = v if v
       end
       val
     end
@@ -62,9 +66,13 @@ module KeePassLib
       elements(name)
     end
 
-    def elements(name)
-      if @elem[name].class == Array
-        return @elem[name].map do |elem| KdbXMLElement.new(name, elem) end
+    def elements(name = nil)
+      if name
+        if @elem[name].class == Array
+          return @elem[name].map do |elem| KdbXMLElement.new(name, elem) end
+        end
+      else
+        # pass
       end
 
       return []

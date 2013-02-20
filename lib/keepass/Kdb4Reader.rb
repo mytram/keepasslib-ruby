@@ -83,11 +83,25 @@ module KeePassLib
         logger.debug("hashed eof: #{hashed.eof}")
 
         gz = KeePassLib::IO::GZipInputStream.new(hashed) if @compression_algorithm == COMPRESSION_GZIP
-        pass = gz.read(20000)
-        logger.debug("pass length: #{pass.length}")
-
+        # pass = gz.read(20000)
+        # logger.debug("pass length: #{pass.length}")
+        #
         # logger.debug(pass)
+        rs = nil
+        if @random_stream_id == CSR_SALSA20
+          rs = Salsa20RandomStream.new(@protected_stream_key)
+        elsif @random_stream_id == CSR_ARC4VARIANT
+          fail 'random stream: id=#{@random_stream_id} not supported'
+        else
+          fail 'Unsupported CSR algorithm id=#{@random_stream_id}'
+        end
 
+        parser = Kdb4Parser.new(rs)
+        tree = parse.parse(gz)
+        tree.rounds = @rounds
+        tree.compression_algorithm = @compression_algorithm
+
+        tree
       end
     end
 
