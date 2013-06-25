@@ -17,8 +17,10 @@
 
 require 'openssl'
 require 'keepass'
+require 'keepass/Kdb4Parser'
 require 'keepass/UUID'
 require 'keepass/io/InputStream'
+require 'keepass/io/RandomStream'
 
 module KeePassLib
   class Kdb4Reader
@@ -89,15 +91,15 @@ module KeePassLib
         # logger.debug(pass)
         rs = nil
         if @random_stream_id == CSR_SALSA20
-          rs = Salsa20RandomStream.new(@protected_stream_key)
+          rs = KeePassLib::IO::Salsa20RandomStream.new(@protected_stream_key)
         elsif @random_stream_id == CSR_ARC4VARIANT
           fail 'random stream: id=#{@random_stream_id} not supported'
         else
           fail 'Unsupported CSR algorithm id=#{@random_stream_id}'
         end
 
-        parser = Kdb4Parser.new(rs)
-        tree = parse.parse(gz)
+        parser = KeePassLib::Kdb4Parser.new(rs)
+        tree = parser.parse(gz)
         tree.rounds = @rounds
         tree.compression_algorithm = @compression_algorithm
 

@@ -1,4 +1,4 @@
-require 'keepass/KdbReaderFactory'
+reqxuire 'keepass/KdbReaderFactory'
 require 'keepass/KdbPassword'
 
 factory = KeePassLib::KdbReaderFactory.new
