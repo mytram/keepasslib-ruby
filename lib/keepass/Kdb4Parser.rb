@@ -16,19 +16,19 @@ module KeePassLib
     FIELD_URL      = "URL"
     FIELD_NOTES    = "Notes"
 
-    def initialize(random_stream, date_formatter)
+    def initialize(random_stream, date_formatter=nil)
       @random_stream = random_stream
-      @date_formatter = date_formatter
+      @date_formatter = dcate_formatter
     end
 
     def parse(stream)
-      doc = KeePassLib.KdbXMLDocument.new(stream)
+      doc = KeePassLib::KdbXMLDocument.new(stream)
 
-      fail "Failed to parse database"  if doc.nil
+      fail "Failed to parse database"  if doc.nil?
 
       root_element = doc.root_element
 
-      decode_procted(root_element)
+      decode_protected(root_element)
 
       root = root_element.element('Root')
       fail "Failed to parse database:Root missing" if root.nil?
@@ -43,7 +43,7 @@ module KeePassLib
     end
 
     def decode_protected(root)
-      protected = root.attr('Protected').value_as_b
+      protected = root.attr('Protected').value_as_b if root.attr('Protected')
       if protected
         value = root.value
         root.value(@random_stream.xor(Base64.decode64(value)))
@@ -52,9 +52,9 @@ module KeePassLib
 
     end
 
-    def parse_meta(meta, tree)
+    def parse_meta(meta)
       return if meta.nil?
-      return Kdb4Tree.new(meta)
+      return KeePassLib::Kdb4Tree.new(meta)
     end
 
     def parse_group(group)
