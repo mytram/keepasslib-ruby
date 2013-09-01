@@ -18,7 +18,7 @@ module KeePassLib
 
     def initialize(random_stream, date_formatter=nil)
       @random_stream = random_stream
-      @date_formatter = dcate_formatter
+      @date_formatter = date_formatter
     end
 
     def parse(stream)
