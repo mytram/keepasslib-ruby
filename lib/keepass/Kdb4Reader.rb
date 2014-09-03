@@ -89,7 +89,10 @@ module KeePassLib
 
         rs = nil
         if @random_stream_id == CSR_SALSA20
+<<<<<<< HEAD
           logger.debug("protected_stream_key: " + @protected_stream_key.length.to_s)
+=======
+>>>>>>> 644952e6efb374c479c7ab4206ee62100ca49d45
           rs = KeePassLib::IO::Salsa20RandomStream.new(@protected_stream_key)
         elsif @random_stream_id == CSR_ARC4VARIANT
           #TBD not supported
@@ -98,10 +101,15 @@ module KeePassLib
           fail 'Unsupported CSR algorithm id=#{@random_stream_id}'
         end
 
+<<<<<<< HEAD
         # parse
         parser = KeePassLib::Kdb4Parser.new(rs)
         tree = parser.parse(gz)
 
+=======
+        parser = KeePassLib::Kdb4Parser.new(rs)
+        tree = parser.parse(gz)
+>>>>>>> 644952e6efb374c479c7ab4206ee62100ca49d45
         tree.rounds = @rounds
         tree.compression_algorithm = @compression_algorithm
 
