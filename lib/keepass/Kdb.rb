@@ -1,8 +1,16 @@
 require 'keepass'
+require 'base64'
 
 module KeePassLib
+  class KdbNode
+    def parse_uuid_string(string)
+      return nil if string.nil? || string.length == 0
+      # KeePassLib::UUID.new(Base64.decode64(string))
+      Base64.decode64(string)
+    end
+  end # class KdbNode
 
-  class KdbGroup
+  class KdbGroup < KdbNode
     attr_accessor :parent
     attr_accessor :image
     attr_accessor :name
@@ -22,11 +30,11 @@ module KeePassLib
 
   end # KdbGroup
 
-  class KdbEntry
-    
+  class KdbEntry < KdbNode
+    attr_accessor :name
   end # KdbEntry
 
-  class KdbTree
+  class KdbTree < KdbNode
     attr_reader :root
 
     def create_group(parent)
@@ -39,4 +47,3 @@ module KeePassLib
   end # KdbTree
 
 end # KeePassLib
-

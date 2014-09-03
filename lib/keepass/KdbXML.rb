@@ -1,15 +1,23 @@
 require 'xmlsimple'
+require 'keepass'
+require 'pp'
 
 module KeePassLib
+
   class KdbXMLDocument
     attr_reader :root_element
     def initialize(stream)
+      logger = KeePassLib::get_logger
       data = ''
       while bytes = stream.read(5*1024) do
         data += bytes
       end
 
+      # @data = data
+      # logger.debug(data)
+
       @doc = XmlSimple.xml_in(data)
+      pp @doc
       @root_element = KdbXMLElement.new('_root', @doc)
     end
 
@@ -20,6 +28,10 @@ module KeePassLib
     def initialize(name, elem)
       @name = name
       @elem = elem
+    end
+
+    def children
+      
     end
 
     def to_s
@@ -69,10 +81,22 @@ module KeePassLib
     def elements(name = nil)
       if name
         if @elem[name].class == Array
-          return @elem[name].map do |elem| KdbXMLElement.new(name, elem) end
+          return @elem[name].map { |elem| KdbXMLElement.new(name, elem) }
         end
       else
-        # pass
+        return [] if @elem.class != Hash
+
+        children = Array.new
+        @elem.each { |key, value| 
+          if value.class == Array
+            if value.length > 1
+              value.each { |e| children << KdbXMLElement.new(key, e) }
+            else
+              children << KdbXMLElement.new(key, value[0])
+            end
+          end
+        }
+        return children
       end
 
       return []

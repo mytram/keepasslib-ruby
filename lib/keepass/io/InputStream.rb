@@ -153,7 +153,7 @@ module KeePassLib
         @output_buffer = @source.read(buffer_length)
 
         if !@output_buffer or @output_buffer.length != buffer_length
-          fail "Failed to read block"
+          fail 'Failed to read block'
         end
 
         # Verify hash
@@ -161,14 +161,14 @@ module KeePassLib
         sha256 << @output_buffer
 
         if sha256.digest != hash
-          fail "Invalid hash"
+          fail 'Invalid hash'
         end
         true
       end
     end # class HashedInputStream
 
     class GZipInputStream < InputStream
-
+      
       # decompress
       def initialize(stream)
         @source = stream

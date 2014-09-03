@@ -34,9 +34,6 @@ plain = cipher.update(cipher_text) + cipher.final
 
 puts plain
 
-
 puts ba_s(encrypted)
 puts encrypted.length
-
-
 

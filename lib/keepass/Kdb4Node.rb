@@ -1,15 +1,14 @@
-
 require 'xmlsimple'
-require 'base64'
 require 'keepass'
 require 'keepass/Kdb'
 
 module KeePassLib
 
-  class Kdb4tree < KdbTree
+  class Kdb4Tree < KdbTree
     attr_accessor :root
     attr_accessor :rounds
     attr_accessor :compression_algorithm
+    attr_accessor :random_stream
 
     attr_reader :generator
     attr_reader :database_name
@@ -45,7 +44,7 @@ module KeePassLib
 
     def initialize(meta)
       @generator                 = meta.e('Generator').value
-      @database_name             = meta.e('DatabseName').value
+      @database_name             = meta.e('DatabaseName').value
       @database_name_changed     = meta.e('DatabaseNameChanged').value
       @default_user_name         = meta.e('DefaultUserName').value
       @default_user_name_changed = meta.e('DefaultUserNameChanged').value
@@ -88,7 +87,7 @@ module KeePassLib
       meta.es('CustomData').each do |item|
           @custom_data << CustomItem.new(item)
       end
-    end
+    end # def initialize
   end # class Kdb4Tree
 
   class CustomIcon
@@ -97,7 +96,7 @@ module KeePassLib
     def initialize(icon)
       @uuid, @data = icon.e('UUID').value, icon.e('Data').value
     end
-  end
+  end # class CustomeIcon
 
   class Binary
     attr_reader :binary_id
@@ -108,7 +107,6 @@ module KeePassLib
       @binary_id, @compressed, @data = bin.attr('ID'), bin.attr_as_b('Compressed'), bin.value
     end
   end # class Binary
-
 
   class CustomItem
     attr_reader :key
@@ -144,8 +142,9 @@ module KeePassLib
     attr_reader :subgroups
 
     def initialize(elem)
+      logger = KeePassLib::get_logger
       @uuid = parse_uuid_string(elem.e('UUID').value)
-      if group.uuid.nil?
+      if @uuid.nil?
         @uuid = KeePassLib::UUID.uuid
       end
       #
@@ -170,23 +169,38 @@ module KeePassLib
       @enable_searching = elem.e("EnableSearching").value
       @last_top_visible_entry = parse_uuid_string(elem.e("LastTopVisibleEntry").value)
 
-      @entries = Array.new( elem.es('Entry').length )
-      elem.es('Entry').each do |elem|
-        entry = parse_entry(elem)
-        entry.parent = group # FIXME weakref???, cyclic ref
+      entry_es = elem.es('Entry')
+      @entries = Array.new
+      # @entries = Array.new( entry_es.length )
+      logger.debug('entry size: ' + entry_es.length.to_s)
+      entry_es.each do |ee|
+        logger.debug('Add entry: ' + ee.name)
+        entry = parse_entry(ee)
+        entry.parent = self # FIXME weakref???, cyclic ref
         @entries << entry
       end
 
       @subgroups = Array.new( elem.es('Group').length )
-      elem.es('Group').each do |subelem|
-        subgroup = Kdb4Group.new(subelem)
+      elem.es('Group').each do |subgrp|
+        subgroup = Kdb4Group.new(subgrp)
         subgroup.parent = self # FIXME weakref???, cyclic ref
         @subgroups << subgroup
       end
-    end
+    end # def initialize
+    
+    def parse_entry(elem)
+      Kdb4Entry.new(elem)
+    end # def parse_entry
   end # class Kdb4Group
 
   class Kdb4Entry < KdbEntry
+    FIELD_TITLE     = 'Title'
+    FIELD_USER_NAME = 'UserName'
+    FIELD_PASSWORD  = 'Password'
+    FIELD_URL       = 'URL'
+    FIELD_NOTES     = 'Notes'
+
+    attr_accessor :parent
 
     attr_reader :uuid
 
@@ -220,14 +234,16 @@ module KeePassLib
     def initialize(root)
       @uuid = parse_uuid_string(root.e('UUID').value)
 
-      @custom_icon_uuid = parse_uuid_string( root.e('CustomIconUUID').value )
+      if not root.e('CustomItemUUID').nil?
+        @custom_icon_uuid = parse_uuid_string( root.e('CustomIconUUID').value )
+      end
 
       @foreground_color = root.e('ForegroundColor').value
       @background_color = root.e('BackgroundColor').value
       @override_url     = root.e('OverrideURL').value
       @tags             = root.e('Tags').value
 
-      times = root.es('Times');
+      times = root.e('Times');
 
       if times
         @last_modification_time = times.e("LastModificationTime").value
@@ -242,10 +258,10 @@ module KeePassLib
       @string_fields = Array.new()
 
       root.es('String').each do |elem|
-        field = StringField(elem)
+        field = StringField.new(elem)
         if field.key == FIELD_TITLE
           @title_string_field = field
-        elsif field.key == FIELD_USERNAME
+        elsif field.key == FIELD_USER_NAME
           @username_string_field = field
         elsif field.key == FIELD_PASSWORD
           @password_string_field = field
@@ -267,21 +283,15 @@ module KeePassLib
         hist_elem = root.e('History')
         if hist_elem
           @history = Array.new( hist_elem.es('Entry').length )
-          hist_elem.es('Entry').es('Entry') do |he|
+          hist_elem.es('Entry') do |he|
             @history << Kdb4Entry.new(he)
           end
         else
           @history = Array.new()
         end
       end
+    end
   end # class Kdb4Entry
-
-
-  def parse_uuid_string(string)
-    return nil if string.nil || string.length == 0
-    # KeePassLib::UUID.new(Base64.decode64(string))
-    Base64.decode64(string)
-  end
 
   class StringField
     attr_reader :key
@@ -291,9 +301,9 @@ module KeePassLib
     def initialize(elem)
       @key       = elem.e('Key').value
       @value     = elem.e('Value').value
-      @protected = elem.e('Protected').value_as_b
+      @protected = elem.attr_as_b('Protected')
     end
-  end
+  end # class StringField
 
   class BinaryRef
     attr_reader :key
@@ -303,7 +313,7 @@ module KeePassLib
       @key = elem.e('Key').value
       @ref = elem.e('Value').attr('Ref').value_as_i
     end
-  end
+  end # class BinaryRef
 
   class AutoType
     def initialize(elem)
@@ -318,7 +328,7 @@ module KeePassLib
       end
 
     end
-  end
+  end # class AutoType
 
   class Association
     def initialize(elem)
@@ -326,6 +336,6 @@ module KeePassLib
       @keystroke_sequence = elem.e('KeystrokeSequence').value
 
     end
-  end
+  end # class Association
 
 end # KeePassLib

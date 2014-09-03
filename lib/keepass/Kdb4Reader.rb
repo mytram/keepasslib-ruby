@@ -57,18 +57,19 @@ module KeePassLib
 
     def load(filename, kdb_password)
       logger = KeePassLib::get_logger
-      logger.debug("Kdb4Reader load")
+      logger.debug(     "Kdb4Reader load")
       File.open(filename) do |file|
         stream = KeePassLib::IO::FileInputStream.new(file)
         read_header(stream)
         if @cipher_uuid != UUID::AESUUID
-          fail "Unsupported cipher"
+          fail          'Unsupported cipher'
         else
-          logger.debug("cipher uuid is AESUUID")
+          logger.debug( 'cipher uuid is AESUUID')
         end
 
-        logger.debug("rounds: " + @rounds.to_s)
-        logger.debug("compression algo: " + @compression_algorithm.to_s)
+        logger.debug('rounds: ' + @rounds.to_s)
+        logger.debug('compression algo: ' + @compression_algorithm.to_s)
+
         key = kdb_password.create_final_key(VERSION, @master_seed, @transform_seed, @rounds)
         logger.debug("key length: #{key.length}")
         logger.debug("stream_start_bytes1, 2:  #{@stream_start_bytes[0]} #{@stream_start_bytes[1]}")
@@ -85,21 +86,22 @@ module KeePassLib
         logger.debug("hashed eof: #{hashed.eof}")
 
         gz = KeePassLib::IO::GZipInputStream.new(hashed) if @compression_algorithm == COMPRESSION_GZIP
-        # pass = gz.read(20000)
-        # logger.debug("pass length: #{pass.length}")
-        #
-        # logger.debug(pass)
+
         rs = nil
         if @random_stream_id == CSR_SALSA20
+          logger.debug("protected_stream_key: " + @protected_stream_key.length.to_s)
           rs = KeePassLib::IO::Salsa20RandomStream.new(@protected_stream_key)
         elsif @random_stream_id == CSR_ARC4VARIANT
+          #TBD not supported
           fail 'random stream: id=#{@random_stream_id} not supported'
         else
           fail 'Unsupported CSR algorithm id=#{@random_stream_id}'
         end
 
+        # parse
         parser = KeePassLib::Kdb4Parser.new(rs)
         tree = parser.parse(gz)
+
         tree.rounds = @rounds
         tree.compression_algorithm = @compression_algorithm
 
@@ -107,6 +109,7 @@ module KeePassLib
       end
     end
 
+    #
     def read_header(stream)
       logger = KeePassLib::get_logger
       sig1 = stream.read_uint32
@@ -115,14 +118,13 @@ module KeePassLib
 
       buffer = nil
 
-      fail "Invalid signature"  if !(sig1 == KDB4_SIG1 && sig2 == KDB4_SIG2)
+      fail 'Invalid signature'  if !(sig1 == KDB4_SIG1 && sig2 == KDB4_SIG2)
 
       logger.debug('version: ' + version.to_s)
 
       eoh = false
 
       while !eoh do
-        # (field_type, field_size) = .read(1+2).unpack("CS<")
         field_type = stream.read_uint8
         field_size = stream.read_uint16
 
@@ -135,17 +137,17 @@ module KeePassLib
           @comment = stream.read(field_size)
         elsif field_type == HEADER_CIPHERID
           if field_size != 16
-            fail "Invalid cipher id"
+            fail 'Invalid cipher id'
           end
           @cipher_uuid = stream.read(field_size).bytes.to_a
         elsif field_type == HEADER_MASTERSEED
           if field_size != 32
-            fail "Invalid field size"
+            fail 'Invalid field size'
           end
           @master_seed = stream.read(field_size)
         elsif field_type == HEADER_TRANSFORMSEED
           if field_size != 32
-            fail "Invalid field size"
+            fail 'Invalid field size'
           end
           @transform_seed = stream.read(field_size)
         elsif field_type == HEADER_ENCRYPTIONIV
@@ -155,23 +157,23 @@ module KeePassLib
         elsif field_type == HEADER_STARTBYTES
           @stream_start_bytes  = stream.read(field_size)
         elsif field_type == HEADER_TRANSFORMROUNDS
-          @rounds = stream.read_uint64 # (8).unpack("Q<")[0]
+          @rounds = stream.read_uint64 # (8).unpack('Q<')[0]
         elsif field_type == HEADER_COMPRESSION
           @compression_algorithm = stream.read_uint32
           if @compression_algorithm >= COMPRESSION_COUNT
-            fail "Invalid compression:" + @compression_algorithm
+            fail 'Invalid compression:' + @compression_algorithm
           end
         elsif field_type == HEADER_RANDOMSTREAMID
           @random_stream_id = stream.read_uint32
           if @random_stream_id > CSR_COUNT
-            fail "Invalid CSR algorithm"
+            fail 'Invalid CSR algorithm'
           end
-          logger.debug("random_stream_id #{@random_stream_id}")
+          logger.debug('random_stream_id #{@random_stream_id}')
         else
-          fail "Invalid field type:" + field_type.to_s
+          fail 'Invalid field type:' + field_type.to_s
         end
       end
-    end
+    end # read_header
   end # class Kdb4Reader
 end # module KeePassLib
 
