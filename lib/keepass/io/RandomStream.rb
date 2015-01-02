@@ -9,8 +9,18 @@ module KeePassLib
       end
 
       def xor(data)
+        logger = KeePassLib::get_logger
+
         bytes = data.bytes.to_a
-        bytes.length.times { |i| bytes[i] ^= get_byte }
+
+        bytes.length.times { |i|
+          bytes[i] ^= get_byte
+        }
+        
+        # bytes.each { |i| 
+        #   logger.debug('byte: ' + i.to_s(16))
+        # }
+
         bytes.pack('C*')
       end
     end # RandomStream
@@ -21,44 +31,36 @@ module KeePassLib
       def initialize(key = nil)
         @state = Array.new
         @key_stream = Array.new
+        64.times.each { |i| @key_stream[i] = 0 }
         
         if key.nil?
           key = sec_random_bytes(256)
         end
 
-        p 'key: '
-        key.bytes.to_a.each { |i| p i.to_s(16) }
-
         sha256 = Digest::SHA2.new(256)
         sha256 << key
 
-        # p 'key: ' + key
         digest = sha256.digest
-        p 'digest: '
-        digest.bytes.to_a.each { |i| p i.to_s(16) }
         
         set_key(digest)
         iv = [0xE8, 0x30, 0x09, 0x4B, 0x97, 0x20, 0x5D, 0x2A].pack('C*')
         set_iv(iv)
 
-        p 'state: '
-        @state.each { |i| p i.to_s(16) }
-
         @index = 0
       end
 
       def rotl(x, y)
+        # take only 32bits
         mask = 0x0ffffffff
-        (mask & (x << y)) | (mask & (x >> (32 - y)))
+        x = mask & x
+        return mask & ( (x << y) | ( x >> (32-y) ) )
       end
 
       def set_key(key)
-        logger = KeePassLib::get_logger
-
-        @state[1], @state[2], @state[3], @state[4], @state[11], @state[12], @state[13], @state[14] = key.unpack("L<L<L<L<L<L<L<L<")
+        @state[ 1], @state[ 2], @state[ 3], @state[ 4],
+        @state[11], @state[12], @state[13], @state[14]  = key.unpack("L<L<L<L<L<L<L<L<")
 
         @state[0], @state[5], @state[10], @state[15] = SIGMA[0,4]
-        logger.debug("state[0]: #{@state[0].to_s(16)}")
       end
 
       def uint8_to_32_little(buffer, offset)
@@ -67,14 +69,11 @@ module KeePassLib
 
       def set_iv(iv)
         logger = KeePassLib::get_logger
+        logger.debug('set_iv')
         @state[6], @state[7] = iv.unpack("L<L<")
 
-        # bytes = iv.bytes
-        # @state[6] = uint8_to_32_little(bytes, 0)
-        # @state[7] = uint8_to_32_little(bytes, 4)
-
-        logger.debug('state[6]: ' + @state[6].to_s(16))
-        logger.debug('state[7]: ' + @state[7].to_s(16))
+        # logger.debug('state[6]: ' + @state[6].to_s(16))
+        # logger.debug('state[7]: ' + @state[7].to_s(16))
 
         @state[8] = 0 
         @state[9] = 0
@@ -87,6 +86,7 @@ module KeePassLib
       def update_state
         logger = KeePassLib::get_logger
         logger.debug('update_state')
+
         x = []
         16.times.each { |i| x[i] = @state[i] }
 
@@ -128,16 +128,14 @@ module KeePassLib
         16.times.each { |i| x[i] += @state[i] }
 
         j = 0
+        byte_mask = 0x0ff
         16.times.each { |i| 
-          t = 0x0ffffffff & x[i]
-          # 4.times.each { |n|  @key_stream[j+n] = t >> (8*n) }
-          # get the last byte
+          t = x[i]
 
-
-          @key_stream[j+0] = 0x000000ff & t;
-          @key_stream[j+1] = 0x000000ff & t >> 8;
-          @key_stream[j+2] = 0x000000ff & t >> 16;
-          @key_stream[j+3] = 0x000000ff & t >> 24;
+          @key_stream[j+0] = byte_mask & t;
+          @key_stream[j+1] = byte_mask & (t >> 8);
+          @key_stream[j+2] = byte_mask & (t >> 16);
+          @key_stream[j+3] = byte_mask & (t >> 24);
 
           j += 4
         }
@@ -154,7 +152,6 @@ module KeePassLib
         end
 
         value = @key_stream[@index]
-
         @index = (@index + 1) & 0x03F
 
         value

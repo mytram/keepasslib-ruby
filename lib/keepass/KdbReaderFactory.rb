@@ -9,8 +9,8 @@ module KeePassLib
 
     def load(filename, kdb_password)
       reader = nil
-      File.open(filename) do |file|
 
+      File.open(filename) do |file|
         logger = KeePassLib::get_logger
 
         # The signatures are stored in little endian fashion

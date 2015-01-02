@@ -17,7 +17,7 @@ module KeePassLib
       # logger.debug(data)
 
       @doc = XmlSimple.xml_in(data)
-      pp @doc
+      # pp @doc
       @root_element = KdbXMLElement.new('_root', @doc)
     end
 
